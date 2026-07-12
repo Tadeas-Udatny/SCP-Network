@@ -2,6 +2,14 @@ from bs4 import BeautifulSoup
 import requests as req
 import re
 
+import time
+
+
+# TO-DO
+# Ignore prev and next scp
+# Ignore custom tables
+# Fix up containment class, use regex?
+
 PRESET="https://scp-wiki.wikidot.com/scp-"
 
 def pad_number(num: int) -> str:
@@ -23,7 +31,7 @@ class SCP_item:
     def __init__(self, number: int, containment_class: str):
         self.number = number
         self.containment_class = containment_class
-        self.connections: dict[int, int] = []
+        self.connections: dict[int, int] = {}
         self.tags = []
 
 
@@ -35,7 +43,7 @@ def get_SCP_items(lower_bound: int, upper_bound: int) -> dict[int, SCP_item]:
     SCP_neighbours = {}
 
     for scp in range(lower_bound, upper_bound+1):
-        candidate = process_scp(scp)
+        candidate = process_scp(scp, SCP_neighbours)
         if candidate is None:
             print(f"SCP #{scp} is invalid / does not exist")
             continue
@@ -45,7 +53,10 @@ def get_SCP_items(lower_bound: int, upper_bound: int) -> dict[int, SCP_item]:
 
     return SCPs
 
-def get_containment_class(soup: BeautifulSoup) -> str:
+def get_containment_class(soup: BeautifulSoup) -> str | None:
+    if len(soup.find_all("strong")) < 2:
+        return None
+
     containment_element = soup.find_all("strong")[1].parent.text
     return containment_element.split()[-1]
 
@@ -59,7 +70,7 @@ def clean_neighbours(scp: int, neighbours: list[BeautifulSoup]) -> set[int]:
     res = {}
 
     for neigh in neighbours:
-        code = int(neigh.text.split("-")[1])
+        code = int(neigh['href'].split("-")[1])
 
         if code != scp:
             res[code] = res.get(code, 0) + 1
@@ -75,25 +86,22 @@ def get_other_connections(scp: int, neighbours: list[BeautifulSoup], aux: dict[i
         if parent not in parent_paragraphs:
             parent_paragraphs[parent] = set()
 
-        parent_paragraphs[parent].add(neigh.text.split("-")[1])
+        parent_paragraphs[parent].add(neigh['href'].split("-")[1])
 
     for items in parent_paragraphs.values():
         itemsa = list(items)
         for i, item in enumerate(itemsa):
-            for j in range(i+1, len(itemsa)):
+            for j in range(len(itemsa)):
                 other = itemsa[j]
 
-                if other in aux and item in aux[other]:
-                    aux[other][item] += 1
+                if i == j:
+                    continue
 
-                elif item in aux and other in aux[item]:
-                    aux[item][other] += 1
-                else:
+                if item not in aux:
+                    aux[item] = {}
 
-                    if item not in aux:
-                        aux[item] = {}
+                aux[item][other] = aux[item].get(other, 0) + 1
 
-                    aux[item][other] = 1
 
 def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
     link = "".join((PRESET, pad_number(scp)))
@@ -114,4 +122,6 @@ def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
 
     get_other_connections(scp, neighbours_links, aux)
     
-    return None
+    return scp_object
+
+get_SCP_items(2, 200)
