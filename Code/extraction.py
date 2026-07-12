@@ -47,7 +47,13 @@ def get_containment_class(soup: BeautifulSoup) -> str:
     containment_element = soup.find_all("strong")[1].parent.text
     return containment_element.split()[-1]
 
-def process_scp(scp: int) -> SCP_item  | None:
+
+def get_neighbouring_scps(soup: BeautifulSoup):
+    div = soup.find( "div", {"id" : "page-content"})
+
+    return div.find_all("a", href=re.compile("^/scp-"))
+
+def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
     link = "".join((PRESET, pad_number(scp)))
     req_result = req.get("".join(link))
 
@@ -57,7 +63,6 @@ def process_scp(scp: int) -> SCP_item  | None:
     soup = BeautifulSoup(req_result.content, "html.parser")
 
     containment_class = get_containment_class(soup)
+    neighbours = get_neighbouring_scps(soup)
     
-
-
     return None
