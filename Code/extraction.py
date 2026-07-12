@@ -53,6 +53,16 @@ def get_neighbouring_scps(soup: BeautifulSoup):
 
     return div.find_all("a", href=re.compile("^/scp-"))
 
+def clean_neighbours(scp: int, neighbours: list[BeautifulSoup]) -> set[int]:
+    res = set()
+
+    for neigh in neighbours:
+        code = int(neigh.text.split("-")[1])
+
+        if code != scp:
+            res.add(code)
+    return res
+
 def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
     link = "".join((PRESET, pad_number(scp)))
     req_result = req.get("".join(link))
@@ -61,8 +71,13 @@ def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
         return None
     
     soup = BeautifulSoup(req_result.content, "html.parser")
+    
+    neighbours_links = get_neighbouring_scps(soup)
 
     containment_class = get_containment_class(soup)
-    neighbours = get_neighbouring_scps(soup)
+    neighbours = clean_neighbours(scp, neighbours_links)
+
+    scp_object = SCP_item(scp, containment_class)
+    scp_object.connections = neighbours
     
     return None
