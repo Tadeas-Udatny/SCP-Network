@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import requests as req
+import re
 
 PRESET="https://scp-wiki.wikidot.com/scp-"
 
@@ -22,15 +23,16 @@ class SCP_item:
     def __init__(self, number: int, containment_class: str):
         self.number = number
         self.containment_class = containment_class
-        self.connections: list[int] = []
-
-    def get_connections(self) -> None:
-        pass
+        self.connections: dict[int, int] = []
+        self.tags = []
 
 
 
 def get_SCP_items(lower_bound: int, upper_bound: int) -> dict[int, SCP_item]:
     SCPs = {}
+
+    # Aux memory for connections between SCPs mentioned in the same entry
+    SCP_neighbours = {}
 
     for scp in range(lower_bound, upper_bound+1):
         candidate = process_scp(scp)
@@ -54,14 +56,44 @@ def get_neighbouring_scps(soup: BeautifulSoup):
     return div.find_all("a", href=re.compile("^/scp-"))
 
 def clean_neighbours(scp: int, neighbours: list[BeautifulSoup]) -> set[int]:
-    res = set()
+    res = {}
 
     for neigh in neighbours:
         code = int(neigh.text.split("-")[1])
 
         if code != scp:
-            res.add(code)
+            res[code] = res.get(code, 0) + 1
     return res
+
+def get_other_connections(scp: int, neighbours: list[BeautifulSoup], aux: dict[int, dict[int, int]]) -> None:
+
+    parent_paragraphs = {}
+
+    for neigh in neighbours:
+        parent = neigh.parent
+
+        if parent not in parent_paragraphs:
+            parent_paragraphs[parent] = set()
+
+        parent_paragraphs[parent].add(neigh.text.split("-")[1])
+
+    for items in parent_paragraphs.values():
+        itemsa = list(items)
+        for i, item in enumerate(itemsa):
+            for j in range(i+1, len(itemsa)):
+                other = itemsa[j]
+
+                if other in aux and item in aux[other]:
+                    aux[other][item] += 1
+
+                elif item in aux and other in aux[item]:
+                    aux[item][other] += 1
+                else:
+
+                    if item not in aux:
+                        aux[item] = {}
+
+                    aux[item][other] = 1
 
 def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
     link = "".join((PRESET, pad_number(scp)))
@@ -79,5 +111,7 @@ def process_scp(scp: int, aux: dict[int, set[int]]) -> SCP_item  | None:
 
     scp_object = SCP_item(scp, containment_class)
     scp_object.connections = neighbours
+
+    get_other_connections(scp, neighbours_links, aux)
     
     return None
