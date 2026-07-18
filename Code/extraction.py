@@ -51,12 +51,9 @@ def get_SCP_items(lower_bound: int, upper_bound: int) -> dict[int, SCP_item]:
     return SCPs
 
 def get_containment_class(soup: BeautifulSoup) -> str | None:
-    if len(soup.find_all("strong")) < 2:
-        return None
+    el = soup.find("strong", string=re.compile("^Containment")).parent
 
-    containment_element = soup.find_all("strong")[1].parent.text
-    return containment_element.split()[-1]
-
+    return el.text.split()[-1]
 
 def get_neighbouring_scps(soup: BeautifulSoup):
     div = soup.find( "div", {"id" : "page-content"})
