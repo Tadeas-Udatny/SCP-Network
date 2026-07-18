@@ -6,8 +6,6 @@ import time
 
 
 # TO-DO
-# Ignore prev and next scp
-# Ignore custom tables
 # Fix up containment class, use regex?
 
 PRESET="https://scp-wiki.wikidot.com/scp-"
@@ -24,7 +22,6 @@ def pad_number(num: int) -> str:
     parts.append(str(num))
     res = "".join(parts)
 
-    print(res)
     return res
 
 class SCP_item:
@@ -64,7 +61,16 @@ def get_containment_class(soup: BeautifulSoup) -> str | None:
 def get_neighbouring_scps(soup: BeautifulSoup):
     div = soup.find( "div", {"id" : "page-content"})
 
-    return div.find_all("a", href=re.compile("^/scp-"))
+    res = div.find_all("a", href=re.compile("^/scp-"))
+
+    for neigh in res.copy():
+        if len(neigh.find_parents("div", {"class": "footer-wikiwalk-nav"})) > 0:
+          res.remove(neigh)
+
+        if len(neigh.find_parents("table", {"class": "wiki-content-table"})) > 0:
+          res.remove(neigh)
+
+    return res
 
 def clean_neighbours(scp: int, neighbours: list[BeautifulSoup]) -> set[int]:
     res = {}
@@ -76,7 +82,7 @@ def clean_neighbours(scp: int, neighbours: list[BeautifulSoup]) -> set[int]:
             res[code] = res.get(code, 0) + 1
     return res
 
-def get_other_connections(scp: int, neighbours: list[BeautifulSoup], aux: dict[int, dict[int, int]]) -> None:
+def get_other_connections(scp: int, neighbours: set[BeautifulSoup], aux: dict[int, dict[int, int]]) -> None:
 
     parent_paragraphs = {}
 
